@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  isValidPin,
+  normalizePkPhone,
+  phoneToEmail,
+  pinToPassword,
+  prettyPkPhone,
+} from "@/lib/phone-login";
 import { cn } from "@/lib/utils";
 
 const SAFE_REDIRECTS = ["/", "/dashboard", "/report", "/track", "/admin"] as const;
@@ -38,8 +45,7 @@ function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -54,26 +60,28 @@ function LoginPage() {
     e.preventDefault();
     setError("");
     if (mode === "signup" && name.trim().length < 2) return setError("Please tell us your name.");
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("That email doesn't look quite right.");
-    if (password.length < 6) return setError("Your password needs at least 6 characters.");
+    const normalized = normalizePkPhone(phone);
+    if (!normalized) return setError("Please enter a valid mobile number, like 0348 2530816.");
+    if (!isValidPin(pin)) return setError("Your PIN should be 4 to 6 digits.");
+    const email = phoneToEmail(normalized);
+    const password = pinToPassword(pin);
     setBusy(true);
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back! 👋");
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email,
           password,
-          options: {
-            data: { full_name: name.trim(), phone: phone.trim() },
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-          },
+          options: { data: { full_name: name.trim(), phone: prettyPkPhone(normalized) } },
         });
         if (error) throw error;
         if (!data.session) {
-          toast.success("Almost there! Check your email to confirm your account, then sign in.");
+          setError(
+            'Your account was created, but sign-in is waiting for an email confirmation. Please turn off "Confirm email" in the app\'s Auth settings, then sign in.',
+          );
           setMode("signin");
           return;
         }
@@ -83,10 +91,12 @@ function LoginPage() {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       setError(
         /invalid login/i.test(msg)
-          ? "Email or password is incorrect. Please try again."
+          ? "Number or PIN is incorrect. New here? Tap Sign up first."
           : /already registered/i.test(msg)
-            ? "This email already has an account. Try signing in instead."
-            : msg,
+            ? "This number already has an account. Tap Sign in instead."
+            : /not confirmed/i.test(msg)
+              ? 'This account is waiting for email confirmation. Turn off "Confirm email" in Auth settings.'
+              : msg,
       );
     } finally {
       setBusy(false);
@@ -146,42 +156,39 @@ function LoginPage() {
                     autoComplete="name"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="phone">Phone (optional)</Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="03xx xxxxxxx"
-                    className="mt-1.5 h-11"
-                    autoComplete="tel"
-                  />
-                </div>
               </>
             )}
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="phone">Mobile number</Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="mt-1.5 h-11"
-                autoComplete="email"
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0348 2530816"
+                className="mt-1.5 h-11 font-mono"
+                autoComplete="tel"
               />
             </div>
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="pin">{mode === "signup" ? "Choose a PIN (4–6 digits)" : "PIN"}</Label>
               <Input
-                id="password"
+                id="pin"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="mt-1.5 h-11"
+                inputMode="numeric"
+                maxLength={6}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                className="mt-1.5 h-11 font-mono tracking-[0.4em]"
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
               />
+              {mode === "signup" && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  No email, no SMS. Just remember your PIN 🙂
+                </p>
+              )}
             </div>
             {error && (
               <motion.p

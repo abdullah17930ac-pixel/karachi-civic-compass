@@ -31,5 +31,8 @@ use the editor.
 
 ## Project rules
 
-- Complaint data lives in `src/lib/complaints.ts` (seed data + pure helpers + a localStorage-backed store read via `useComplaints`); it is a browser-only demo with no backend, so pages must work from seed data during SSR and load saved data after hydration.
+- Complaint data lives in Lovable Cloud and is accessed through `src/lib/api.ts`; `src/lib/complaints.ts` holds shared types, pure helpers and the sample complaints the admin can load, so all reads/writes stay in one place.
+- Sign-in is mobile number + PIN mapped to a synthetic email/password in `src/lib/phone-login.ts`, because the auth system requires an email; auto-confirm stays on since those inboxes don't exist.
+- Admin roles are granted only by the `handle_new_user()` database trigger (or manual role rows), never by client code, to prevent privilege escalation.
+- Complaint photos live in a private bucket and are shown via short-lived signed links, so photos are never publicly listable.
 - Dates are formatted with a fixed `Asia/Karachi` timezone (`src/lib/categories.ts`) so server and browser render identical text.
