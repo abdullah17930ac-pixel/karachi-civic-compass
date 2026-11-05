@@ -1,6 +1,7 @@
 // Database access for CivicConnect (Lovable Cloud / Supabase).
 // Pages call these helpers through React Query hooks in `src/hooks/use-civic.ts`.
 import { supabase } from "@/integrations/supabase/client";
+import { getTrackingPhotoUrl } from "./photos.functions";
 import {
   CATEGORY_IDS,
   DEPARTMENTS,
@@ -169,6 +170,14 @@ export async function fetchPublicComplaint(trackingId: string): Promise<Complain
   if (error) throw error;
   if (!data) return null;
   const c = data as unknown as PublicComplaint;
+  let photo: string | undefined;
+  if (c.photo_url) {
+    try {
+      photo = (await getTrackingPhotoUrl({ data: { trackingId: c.tracking_id } })).url ?? undefined;
+    } catch {
+      photo = undefined;
+    }
+  }
   return {
     id: c.tracking_id,
     dbId: c.id,
@@ -184,7 +193,7 @@ export async function fetchPublicComplaint(trackingId: string): Promise<Complain
     updatedAt: c.updated_at,
     citizen: "",
     mine: false,
-    photo: c.photo_url ?? undefined,
+    photo,
     timeline: toTimeline(c.history ?? []),
   };
 }
@@ -214,7 +223,8 @@ export async function submitComplaint(
       .from("complaint-photos")
       .upload(path, input.photo, { contentType: "image/jpeg", upsert: false });
     if (up.error) photoFailed = true;
-    else photo_url = supabase.storage.from("complaint-photos").getPublicUrl(path).data.publicUrl;
+    // Photos are private: store the object path and serve short-lived signed links.
+    else photo_url = path;
   }
   const { data, error } = await supabase
     .from("complaints")
