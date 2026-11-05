@@ -80,7 +80,7 @@ async function compressImage(file: File): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.72);
 }
 
-type Errors = Partial<Record<"category" | "title" | "description" | "area" | "address", string>>;
+type Errors = Partial<Record<"category" | "title" | "description" | "area" | "address", string | undefined>>;
 
 function ReportPage() {
   const search = Route.useSearch();
