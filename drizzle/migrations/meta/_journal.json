@@ -15,6 +15,13 @@
       "when": 1793906973231,
       "tag": "0001_restrict_complaint_photo_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793908438724,
+      "tag": "0002_admin_by_phone_login",
+      "breakpoints": true
     }
   ]
 }
