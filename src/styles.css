@@ -179,11 +179,11 @@
 }
 
 @utility bg-gradient-navy {
-  background: var(--gradient-navy);
+  background-image: var(--gradient-navy);
 }
 
 @utility bg-gradient-brand {
-  background: var(--gradient-brand);
+  background-image: var(--gradient-brand);
 }
 
 @utility bg-grid {
