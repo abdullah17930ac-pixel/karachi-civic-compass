@@ -8,6 +8,13 @@
       "when": 1793897196620,
       "tag": "0000_civicconnect_core",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793906973231,
+      "tag": "0001_restrict_complaint_photo_reads",
+      "breakpoints": true
     }
   ]
 }
