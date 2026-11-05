@@ -28,13 +28,21 @@ export function ProgressTimeline({ complaint }: { complaint: Complaint }) {
                 <span
                   className={cn(
                     "grid size-12 place-items-center rounded-full border-4 border-card transition-all",
-                    done ? "bg-brand text-brand-foreground shadow-glow" : "bg-muted text-muted-foreground",
-                    i === current && "ring-4 ring-brand/20",
+                    done
+                      ? "bg-brand text-brand-foreground shadow-glow"
+                      : "bg-muted text-muted-foreground",
+                    i === current &&
+                      "ring-4 ring-brand/20 motion-safe:animate-[breathe_2.4s_ease-in-out_infinite]",
                   )}
                 >
                   {done && i < current ? <Check className="size-5" /> : <Icon className="size-5" />}
                 </span>
-                <p className={cn("mt-3 text-sm font-semibold", done ? "text-foreground" : "text-muted-foreground")}>
+                <p
+                  className={cn(
+                    "mt-3 text-sm font-semibold",
+                    done ? "text-foreground" : "text-muted-foreground",
+                  )}
+                >
                   {s}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -65,13 +73,23 @@ export function ProgressTimeline({ complaint }: { complaint: Complaint }) {
               <span
                 className={cn(
                   "relative grid size-10 shrink-0 place-items-center rounded-full",
-                  done ? "bg-brand text-brand-foreground shadow-glow" : "bg-muted text-muted-foreground",
+                  done
+                    ? "bg-brand text-brand-foreground shadow-glow"
+                    : "bg-muted text-muted-foreground",
+                  i === current && "motion-safe:animate-[breathe_2.4s_ease-in-out_infinite]",
                 )}
               >
                 {done && i < current ? <Check className="size-4" /> : <Icon className="size-4" />}
               </span>
               <div className="pt-1">
-                <p className={cn("text-sm font-semibold", done ? "text-foreground" : "text-muted-foreground")}>{s}</p>
+                <p
+                  className={cn(
+                    "text-sm font-semibold",
+                    done ? "text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {s}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {entry ? formatDateTime(entry.date) : "Pending"}
                 </p>

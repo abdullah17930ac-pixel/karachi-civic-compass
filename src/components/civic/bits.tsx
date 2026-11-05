@@ -93,7 +93,9 @@ export function PageHeader({
         {eyebrow && (
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">{eyebrow}</p>
         )}
-        <h1 className="mt-2 font-display text-3xl font-bold text-foreground sm:text-4xl">{title}</h1>
+        <h1 className="mt-2 font-display text-3xl font-bold text-foreground sm:text-4xl">
+          {title}
+        </h1>
         {description && (
           <p className="mt-2 max-w-2xl text-base text-muted-foreground">{description}</p>
         )}
@@ -109,5 +111,32 @@ export function DemoNote({ children }: { children: ReactNode }) {
       <span className="size-1.5 rounded-full bg-brand" />
       {children}
     </span>
+  );
+}
+
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("animate-pulse rounded-xl bg-muted", className)} />;
+}
+
+export function FriendlyEmpty({
+  emoji,
+  title,
+  text,
+  children,
+}: {
+  emoji: string;
+  title: string;
+  text: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="mx-auto max-w-md rounded-2xl border border-dashed border-border bg-card p-10 text-center">
+      <span className="text-4xl" aria-hidden>
+        {emoji}
+      </span>
+      <h2 className="mt-4 text-lg font-bold text-foreground">{title}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{text}</p>
+      {children && <div className="mt-6 flex flex-wrap justify-center gap-2">{children}</div>}
+    </div>
   );
 }

@@ -11,9 +11,13 @@ import {
   MapPin,
   Search,
   Send,
+  Share2,
   X,
 } from "lucide-react";
-import { useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import confetti from "canvas-confetti";
+import { motion } from "framer-motion";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,30 +31,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/civic/bits";
+import { RequireAuth } from "@/components/civic/RequireAuth";
+import { useAuth } from "@/hooks/use-auth";
+import { submitComplaint } from "@/lib/api";
 import { CATEGORIES, categoryMeta } from "@/lib/categories";
-import {
-  CATEGORY_IDS,
-  complaintStore,
-  DEFAULT_DEPARTMENT,
-  KARACHI_AREAS,
-  type CategoryId,
-  type Complaint,
-} from "@/lib/complaints";
+import { CATEGORY_IDS, DEFAULT_DEPARTMENT, KARACHI_AREAS, type CategoryId } from "@/lib/complaints";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/report")({
   validateSearch: (s: Record<string, unknown>): { category?: CategoryId | undefined } => ({
-    category: CATEGORY_IDS.includes(s["category"] as CategoryId) ? (s["category"] as CategoryId) : undefined,
+    category: CATEGORY_IDS.includes(s["category"] as CategoryId)
+      ? (s["category"] as CategoryId)
+      : undefined,
   }),
   head: () => ({
     meta: [
       { title: "Report a Complaint – CivicConnect Karachi" },
       {
         name: "description",
-        content: "Submit a civic complaint with a photo and location and get a unique tracking ID instantly.",
+        content:
+          "Submit a civic complaint with a photo and location and get a unique tracking ID instantly.",
       },
       { property: "og:title", content: "Report a Complaint – CivicConnect" },
-      { property: "og:description", content: "Report a community problem in Karachi in under a minute." },
+      {
+        property: "og:description",
+        content: "Report a community problem in Karachi in under a minute.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -80,9 +86,31 @@ async function compressImage(file: File): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.72);
 }
 
-type Errors = Partial<Record<"category" | "title" | "description" | "area" | "address", string | undefined>>;
+type Errors = Partial<
+  Record<"category" | "title" | "description" | "area" | "address", string | undefined>
+>;
 
 function ReportPage() {
+  return (
+    <RequireAuth redirect="/report">
+      <ReportForm />
+    </RequireAuth>
+  );
+}
+
+async function dataUrlToBlob(url: string) {
+  return (await fetch(url)).blob();
+}
+
+interface Created {
+  trackingId: string;
+  category: CategoryId;
+  area: string;
+}
+
+function ReportForm() {
+  const auth = useAuth();
+  const queryClient = useQueryClient();
   const search = Route.useSearch();
   const [category, setCategory] = useState<CategoryId | undefined>(search.category);
   const [title, setTitle] = useState("");
@@ -94,7 +122,8 @@ function ReportPage() {
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
-  const [created, setCreated] = useState<Complaint | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [created, setCreated] = useState<Created | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file?: File) => {
@@ -130,6 +159,7 @@ function ReportPage() {
       (pos) => {
         setLocating(false);
         const { latitude, longitude } = pos.coords;
+        setCoords({ lat: latitude, lng: longitude });
         setAddress(`GPS ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
         toast.success("Location added from your device.");
       },
@@ -146,7 +176,8 @@ function ReportPage() {
     const next: Errors = {};
     if (!category) next.category = "Choose a category for your complaint.";
     if (title.trim().length < 6) next.title = "Add a short title (at least 6 characters).";
-    if (description.trim().length < 20) next.description = "Describe the problem in at least 20 characters.";
+    if (description.trim().length < 20)
+      next.description = "Describe the problem in at least 20 characters.";
     if (!area) next.area = "Select the area of Karachi.";
     if (address.trim().length < 4) next.address = "Add a street, landmark or GPS location.";
     setErrors(next);
@@ -155,19 +186,34 @@ function ReportPage() {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      const c = complaintStore.add({
-        category: category!,
-        title,
-        description,
-        area,
-        address,
-        photo,
-      });
-      setSubmitting(false);
-      setCreated(c);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 900);
+    void (async () => {
+      try {
+        const res = await submitComplaint(
+          { id: auth.userId!, name: auth.name },
+          {
+            category: category!,
+            title,
+            description,
+            town: area,
+            location: address,
+            latitude: coords?.lat,
+            longitude: coords?.lng,
+            photo: photo ? await dataUrlToBlob(photo) : undefined,
+          },
+        );
+        if (res.photoFailed)
+          toast.warning("Your complaint was saved, but the photo couldn't be uploaded.");
+        void queryClient.invalidateQueries();
+        setCreated({ trackingId: res.trackingId, category: category!, area });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch (err) {
+        toast.error(
+          `Sorry, we couldn't save your complaint. ${err instanceof Error ? err.message : ""}`.trim(),
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    })();
   };
 
   const reset = () => {
@@ -178,6 +224,7 @@ function ReportPage() {
     setArea("");
     setAddress("");
     setPhoto(undefined);
+    setCoords(null);
     setErrors({});
   };
 
@@ -224,7 +271,9 @@ function ReportPage() {
                         <c.icon className="size-5" />
                       </span>
                       <span className="text-sm font-semibold text-foreground">{c.label}</span>
-                      {active && <CheckCircle2 className="absolute right-3 top-3 size-5 text-brand" />}
+                      {active && (
+                        <CheckCircle2 className="absolute right-3 top-3 size-5 text-brand" />
+                      )}
                     </button>
                   );
                 })}
@@ -234,7 +283,12 @@ function ReportPage() {
             {/* Details */}
             <Section step={2} title="Describe the problem">
               <div className="space-y-5">
-                <Field label="Complaint title" error={errors.title} htmlFor="title" hint={`${title.length}/90`}>
+                <Field
+                  label="Complaint title"
+                  error={errors.title}
+                  htmlFor="title"
+                  hint={`${title.length}/90`}
+                >
                   <Input
                     id="title"
                     value={title}
@@ -245,7 +299,12 @@ function ReportPage() {
                     aria-invalid={!!errors.title}
                   />
                 </Field>
-                <Field label="Detailed description" error={errors.description} htmlFor="desc" hint={`${description.length}/600`}>
+                <Field
+                  label="Detailed description"
+                  error={errors.description}
+                  htmlFor="desc"
+                  hint={`${description.length}/600`}
+                >
                   <Textarea
                     id="desc"
                     value={description}
@@ -270,7 +329,11 @@ function ReportPage() {
               />
               {photo ? (
                 <div className="relative overflow-hidden rounded-xl border border-border">
-                  <img src={photo} alt="Uploaded complaint" className="max-h-80 w-full object-cover" />
+                  <img
+                    src={photo}
+                    alt="Uploaded complaint"
+                    className="max-h-80 w-full object-cover"
+                  />
                   <Button
                     type="button"
                     size="icon"
@@ -294,7 +357,9 @@ function ReportPage() {
                   onDrop={onDrop}
                   className={cn(
                     "flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
-                    dragging ? "border-brand bg-brand-soft" : "border-border bg-surface hover:border-brand/50 hover:bg-brand-soft/40",
+                    dragging
+                      ? "border-brand bg-brand-soft"
+                      : "border-border bg-surface hover:border-brand/50 hover:bg-brand-soft/40",
                   )}
                 >
                   <span className="grid size-14 place-items-center rounded-2xl bg-card text-brand shadow-card">
@@ -345,8 +410,15 @@ function ReportPage() {
                   </div>
                 </Field>
               </div>
-              <Button type="button" variant="soft" className="mt-4" onClick={useMyLocation} disabled={locating}>
-                {locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} Use my current location
+              <Button
+                type="button"
+                variant="soft"
+                className="mt-4"
+                onClick={useMyLocation}
+                disabled={locating}
+              >
+                {locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} Use my current
+                location
               </Button>
             </Section>
           </div>
@@ -357,12 +429,24 @@ function ReportPage() {
               <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
                 <h3 className="font-semibold text-foreground">Summary</h3>
                 <dl className="mt-4 space-y-3 text-sm">
-                  <SummaryRow label="Category" value={category ? categoryMeta(category).label : "—"} />
-                  <SummaryRow label="Routed to" value={category ? DEFAULT_DEPARTMENT[category] : "—"} />
+                  <SummaryRow
+                    label="Category"
+                    value={category ? categoryMeta(category).label : "—"}
+                  />
+                  <SummaryRow
+                    label="Routed to"
+                    value={category ? DEFAULT_DEPARTMENT[category] : "—"}
+                  />
                   <SummaryRow label="Area" value={area || "—"} />
                   <SummaryRow label="Photo" value={photo ? "Attached" : "None"} />
                 </dl>
-                <Button type="submit" variant="brand" size="xl" className="mt-6 w-full" disabled={submitting}>
+                <Button
+                  type="submit"
+                  variant="brand"
+                  size="xl"
+                  className="mt-6 w-full"
+                  disabled={submitting}
+                >
                   {submitting ? (
                     <>
                       <Loader2 className="animate-spin" /> Submitting…
@@ -374,7 +458,8 @@ function ReportPage() {
                   )}
                 </Button>
                 <p className="mt-3 text-center text-xs text-muted-foreground">
-                  Demo only — saved in this browser, not sent to any authority.
+                  Reporting as <span className="font-semibold text-foreground">{auth.name}</span>.
+                  You'll get a tracking ID straight away.
                 </p>
               </div>
               <div className="rounded-2xl border border-brand/20 bg-brand-soft p-5">
@@ -412,7 +497,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-card sm:p-7">
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut", delay: step * 0.06 }}
+      className="rounded-2xl border border-border/70 bg-card p-5 shadow-card sm:p-7"
+    >
       <div className="mb-5 flex items-center gap-3">
         <span className="grid size-8 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">
           {step}
@@ -422,7 +512,7 @@ function Section({
       </div>
       {children}
       {error && <p className="mt-3 text-sm font-medium text-destructive">{error}</p>}
-    </section>
+    </motion.section>
   );
 }
 
@@ -462,32 +552,66 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SuccessView({ complaint, onReset }: { complaint: Complaint; onReset: () => void }) {
+function SuccessView({ complaint, onReset }: { complaint: Created; onReset: () => void }) {
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    void confetti({
+      particleCount: 110,
+      spread: 75,
+      origin: { y: 0.35 },
+      colors: ["#D9653B", "#1F7A6D", "#F2B33D", "#ffffff"],
+    });
+  }, []);
+  const id = complaint.trackingId;
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(complaint.id);
+      await navigator.clipboard.writeText(id);
       toast.success("Complaint ID copied");
     } catch {
-      toast.error("Couldn't copy — please note the ID manually.");
+      toast.error("Couldn't copy. Please note the ID down.");
     }
+  };
+  const share = () => {
+    const url = `${window.location.origin}/track?id=${id}`;
+    const text = `I just reported a ${categoryMeta(complaint.category).label.toLowerCase()} problem in ${complaint.area} on CivicConnect. Track it here: ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };
   return (
     <div className="bg-hero">
       <div className="container-page flex justify-center py-14 md:py-20">
-        <div className="w-full max-w-xl animate-fade-up rounded-3xl border border-border/70 bg-card p-8 text-center shadow-elevated sm:p-10">
-          <span className="mx-auto grid size-20 place-items-center rounded-full bg-status-resolved-soft text-status-resolved">
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+          className="w-full max-w-xl rounded-3xl border border-border/70 bg-card p-8 text-center shadow-elevated sm:p-10"
+        >
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.15 }}
+            className="mx-auto grid size-20 place-items-center rounded-full bg-status-resolved-soft text-status-resolved"
+          >
             <CheckCircle2 className="size-10" />
-          </span>
-          <h1 className="mt-6 font-display text-3xl font-bold text-navy">Complaint submitted!</h1>
+          </motion.span>
+          <h1 className="mt-6 font-display text-3xl font-bold text-navy">
+            Thank you for speaking up for your street 💛
+          </h1>
           <p className="mt-3 text-muted-foreground">
-            Thank you for helping improve your community. Save this ID to track your complaint.
+            Your complaint is in. Save this ID to follow it all the way to "Resolved".
           </p>
           <div className="mt-7 rounded-2xl border border-dashed border-brand/40 bg-brand-soft p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Your complaint ID
             </p>
             <div className="mt-2 flex items-center justify-center gap-3">
-              <span className="font-mono text-2xl font-bold tracking-wider text-navy sm:text-3xl">{complaint.id}</span>
+              <motion.span
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 15, delay: 0.35 }}
+                className="font-mono text-2xl font-bold tracking-wider text-navy sm:text-3xl"
+              >
+                {id}
+              </motion.span>
               <Button size="icon" variant="white" onClick={copy} aria-label="Copy complaint ID">
                 <Copy />
               </Button>
@@ -496,7 +620,9 @@ function SuccessView({ complaint, onReset }: { complaint: Complaint; onReset: ()
           <dl className="mt-6 grid grid-cols-2 gap-3 text-left text-sm">
             <div className="rounded-xl bg-surface p-3">
               <dt className="text-xs text-muted-foreground">Category</dt>
-              <dd className="font-semibold text-foreground">{categoryMeta(complaint.category).label}</dd>
+              <dd className="font-semibold text-foreground">
+                {categoryMeta(complaint.category).label}
+              </dd>
             </div>
             <div className="rounded-xl bg-surface p-3">
               <dt className="text-xs text-muted-foreground">Area</dt>
@@ -505,21 +631,29 @@ function SuccessView({ complaint, onReset }: { complaint: Complaint; onReset: ()
           </dl>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild variant="brand" size="lg" className="flex-1">
-              <Link to="/track" search={{ id: complaint.id }}>
+              <Link to="/track" search={{ id }}>
                 <Search /> Track this complaint
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="flex-1">
-              <Link to="/dashboard">
-                <LayoutDashboard /> My dashboard
-              </Link>
+            <Button variant="outline" size="lg" className="flex-1" onClick={share}>
+              <Share2 /> Share on WhatsApp
             </Button>
           </div>
-          <button onClick={onReset} className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
-            Report another issue <ArrowRight className="size-4" />
-          </button>
-          <p className="mt-6 text-xs text-muted-foreground">Demo submission · stored only in this browser</p>
-        </div>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm font-semibold">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1 text-brand hover:underline"
+            >
+              <LayoutDashboard className="size-4" /> My dashboard
+            </Link>
+            <button
+              onClick={onReset}
+              className="inline-flex items-center gap-1 text-brand hover:underline"
+            >
+              Report another issue <ArrowRight className="size-4" />
+            </button>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

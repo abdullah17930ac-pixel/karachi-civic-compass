@@ -241,3 +241,17 @@
     transform: translateY(0);
   }
 }
+
+/* Soft "breathing" glow for the current step on the tracking timeline */
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--brand) 35%, transparent); }
+  50% { box-shadow: 0 0 0 10px color-mix(in oklch, var(--brand) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}

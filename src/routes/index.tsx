@@ -15,9 +15,12 @@ import {
 } from "lucide-react";
 import heroImg from "@/assets/hero-karachi.jpg";
 import { Button } from "@/components/ui/button";
-import { CategoryIcon, DemoNote, StatusBadge } from "@/components/civic/bits";
-import { useComplaints } from "@/hooks/use-complaints";
+import { motion } from "framer-motion";
+import { CategoryIcon, Skeleton, StatusBadge } from "@/components/civic/bits";
+import { CountUp, Reveal, Stagger, StaggerItem, hoverLift } from "@/components/civic/motion";
+import { usePublicStats } from "@/hooks/use-civic";
 import { CATEGORIES, categoryMeta, formatDate } from "@/lib/categories";
+import { CATEGORY_IDS, type CategoryId } from "@/lib/complaints";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,7 +34,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "CivicConnect – Smart Citizen Complaint & Tracking" },
       {
         property: "og:description",
-        content: "Report community problems in Karachi and follow every step until they are resolved.",
+        content:
+          "Report community problems in Karachi and follow every step until they are resolved.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -39,13 +43,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Index,
 });
-
-const COMMUNITY_STATS = [
-  { value: "12,480+", label: "Complaints reported", icon: FileText },
-  { value: "9,630", label: "Issues resolved", icon: CheckCircle2 },
-  { value: "3.2 days", label: "Avg. resolution time", icon: Timer },
-  { value: "18", label: "Karachi towns covered", icon: MapPin },
-];
 
 const STEPS = [
   {
@@ -71,14 +68,41 @@ const STEPS = [
 ];
 
 function Index() {
-  const complaints = useComplaints();
-  const resolved = complaints.filter((c) => c.status === "Resolved").slice(0, 3);
+  const { data: stats, isLoading } = usePublicStats();
+  const total = stats?.total ?? 0;
+  const resolvedCount = stats?.resolved ?? 0;
+  const rate = total ? Math.round((resolvedCount / total) * 100) : 0;
+  const recent = stats?.recent_resolved ?? [];
+  const asCat = (c: string): CategoryId =>
+    (CATEGORY_IDS as readonly string[]).includes(c) ? (c as CategoryId) : "roads";
+
+  const COMMUNITY_STATS = [
+    { value: total, decimals: 0, suffix: "", label: "Complaints reported", icon: FileText },
+    { value: resolvedCount, decimals: 0, suffix: "", label: "Issues resolved", icon: CheckCircle2 },
+    {
+      value: stats?.avg_resolution_days ?? 0,
+      decimals: 1,
+      suffix: " days",
+      label: "Avg. resolution time",
+      icon: Timer,
+    },
+    {
+      value: stats?.towns ?? 0,
+      decimals: 0,
+      suffix: "",
+      label: "Karachi areas covered",
+      icon: MapPin,
+    },
+  ];
 
   return (
     <>
       {/* HERO */}
       <section className="relative overflow-hidden bg-hero">
-        <div className="absolute inset-0 bg-grid [mask-image:linear-gradient(to_bottom,black,transparent_85%)]" aria-hidden />
+        <div
+          className="absolute inset-0 bg-grid [mask-image:linear-gradient(to_bottom,black,transparent_85%)]"
+          aria-hidden
+        />
         <div className="container-page relative grid items-center gap-12 py-14 md:py-20 lg:grid-cols-2 lg:gap-16 lg:py-24">
           <div className="animate-fade-up">
             <span className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-card px-3 py-1.5 text-xs font-semibold text-brand shadow-card">
@@ -90,7 +114,9 @@ function Index() {
             </span>
             <h1 className="mt-6 font-display text-4xl font-extrabold leading-[1.05] text-navy sm:text-5xl lg:text-6xl">
               Together, Let's Build{" "}
-              <span className="bg-gradient-brand bg-clip-text text-transparent">Better Communities.</span>
+              <span className="bg-gradient-brand bg-clip-text text-transparent">
+                Better Communities.
+              </span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
               CivicConnect lets every citizen of Karachi report damaged roads, overflowing garbage,
@@ -120,9 +146,17 @@ function Index() {
                   </span>
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">4,200+ active citizens</span> making
-                their neighbourhoods better
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-status-resolved opacity-60" />
+                  <span className="relative inline-flex size-2 rounded-full bg-status-resolved" />
+                </span>
+                <span>
+                  <span className="font-semibold text-foreground">
+                    {stats ? <CountUp value={stats.citizens} /> : "…"} citizens
+                  </span>{" "}
+                  making their neighbourhoods better
+                </span>
               </p>
             </div>
           </div>
@@ -144,15 +178,26 @@ function Index() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Complaint resolved</p>
-                  <p className="text-xs text-muted-foreground">Garbage cleared · Block 13-D</p>
+                  <p className="text-xs text-muted-foreground">
+                    {recent[0]
+                      ? `${categoryMeta(asCat(recent[0].category)).short} · ${recent[0].town}`
+                      : "Your street could be next"}
+                  </p>
                 </div>
               </div>
             </div>
             <div className="absolute -right-3 top-8 hidden animate-float rounded-2xl border border-border/70 bg-card p-4 shadow-elevated [animation-delay:1.5s] sm:block">
               <p className="text-xs font-medium text-muted-foreground">Resolution rate</p>
-              <p className="font-display text-2xl font-bold text-navy">77%</p>
+              <p className="font-display text-2xl font-bold text-navy">
+                {stats ? <CountUp value={rate} suffix="%" /> : "…"}
+              </p>
               <div className="mt-2 h-1.5 w-32 overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-[77%] rounded-full bg-gradient-brand" />
+                <motion.div
+                  className="h-full rounded-full bg-gradient-brand"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${rate}%` }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                />
               </div>
             </div>
           </div>
@@ -165,20 +210,28 @@ function Index() {
           {COMMUNITY_STATS.map((s) => (
             <div key={s.label} className="bg-card p-6 sm:p-8">
               <s.icon className="size-6 text-brand" />
-              <p className="mt-4 font-display text-3xl font-extrabold text-navy sm:text-4xl">{s.value}</p>
+              <p className="mt-4 font-display text-3xl font-extrabold text-navy sm:text-4xl">
+                {isLoading ? (
+                  <Skeleton className="h-9 w-24" />
+                ) : (
+                  <CountUp value={s.value} decimals={s.decimals} suffix={s.suffix} />
+                )}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">{s.label}</p>
             </div>
           ))}
         </div>
-        <div className="mt-3 flex justify-end">
-          <DemoNote>Community statistics are demonstration data</DemoNote>
-        </div>
+        <p className="mt-3 text-right text-xs text-muted-foreground">
+          Live figures from complaints reported on CivicConnect
+        </p>
       </section>
 
       {/* CATEGORIES */}
       <section className="container-page py-20 md:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">What you can report</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
+            What you can report
+          </p>
           <h2 className="mt-3 font-display text-3xl font-bold text-navy sm:text-4xl">
             Every everyday problem, one place to report it
           </h2>
@@ -186,33 +239,37 @@ function Index() {
             Choose a category and your complaint is routed to the department responsible for it.
           </p>
         </div>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((c) => {
-            const count = complaints.filter((x) => x.category === c.id).length;
+            const count = stats?.active_by_category?.[c.id] ?? 0;
             return (
-              <Link
-                key={c.id}
-                to="/report"
-                search={{ category: c.id }}
-                className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 shadow-card transition-all hover:-translate-y-1 hover:border-brand/30 hover:shadow-elevated"
-              >
-                <div className="flex items-start justify-between">
-                  <span className="grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand transition-colors group-hover:bg-brand group-hover:text-brand-foreground">
-                    <c.icon className="size-7" />
-                  </span>
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                    {count} active
-                  </span>
-                </div>
-                <h3 className="mt-5 text-lg font-bold text-foreground">{c.label}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{c.description}</p>
-                <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand">
-                  Report now <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-                </span>
-              </Link>
+              <StaggerItem key={c.id}>
+                <motion.div {...hoverLift} className="h-full">
+                  <Link
+                    to="/report"
+                    search={{ category: c.id }}
+                    className="group relative block h-full overflow-hidden rounded-2xl border border-border/70 bg-card p-6 shadow-card transition-[border-color,box-shadow] hover:border-brand/30 hover:shadow-elevated"
+                  >
+                    <div className="flex items-start justify-between">
+                      <span className="grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand transition-colors group-hover:bg-brand group-hover:text-brand-foreground group-hover:motion-safe:animate-[wiggle_0.5s_ease-in-out]">
+                        <c.icon className="size-7" />
+                      </span>
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        {count} active
+                      </span>
+                    </div>
+                    <h3 className="mt-5 text-lg font-bold text-foreground">{c.label}</h3>
+                    <p className="mt-1.5 text-sm text-muted-foreground">{c.description}</p>
+                    <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand">
+                      Report now{" "}
+                      <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </Link>
+                </motion.div>
+              </StaggerItem>
             );
           })}
-        </div>
+        </Stagger>
       </section>
 
       {/* HOW IT WORKS */}
@@ -220,7 +277,9 @@ function Index() {
         <div className="container-page">
           <div className="grid gap-12 lg:grid-cols-12">
             <div className="lg:col-span-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">How it works</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
+                How it works
+              </p>
               <h2 className="mt-3 font-display text-3xl font-bold text-navy sm:text-4xl">
                 From complaint to resolution in four simple steps
               </h2>
@@ -233,9 +292,12 @@ function Index() {
                 </Link>
               </Button>
             </div>
-            <ol className="grid gap-4 sm:grid-cols-2 lg:col-span-8">
+            <Stagger className="grid gap-4 sm:grid-cols-2 lg:col-span-8">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="relative rounded-2xl border border-border/70 bg-card p-6 shadow-card">
+                <StaggerItem
+                  key={s.title}
+                  className="relative rounded-2xl border border-border/70 bg-card p-6 shadow-card"
+                >
                   <span className="absolute right-5 top-4 font-display text-5xl font-extrabold text-muted">
                     0{i + 1}
                   </span>
@@ -244,9 +306,9 @@ function Index() {
                   </span>
                   <h3 className="mt-5 text-lg font-bold text-foreground">{s.title}</h3>
                   <p className="mt-1.5 text-sm text-muted-foreground">{s.text}</p>
-                </li>
+                </StaggerItem>
               ))}
-            </ol>
+            </Stagger>
           </div>
         </div>
       </section>
@@ -256,7 +318,9 @@ function Index() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">Impact</p>
-            <h2 className="mt-3 font-display text-3xl font-bold text-navy sm:text-4xl">Recently resolved</h2>
+            <h2 className="mt-3 font-display text-3xl font-bold text-navy sm:text-4xl">
+              Recently resolved
+            </h2>
           </div>
           <Button asChild variant="ghost" className="self-start text-brand sm:self-auto">
             <Link to="/track">
@@ -264,50 +328,69 @@ function Index() {
             </Link>
           </Button>
         </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {resolved.map((c) => (
-            <Link
-              key={c.id}
-              to="/track"
-              search={{ id: c.id }}
-              className="rounded-2xl border border-border/70 bg-card p-6 shadow-card transition-all hover:-translate-y-1 hover:shadow-elevated"
-            >
-              <div className="flex items-center justify-between">
-                <CategoryIcon category={c.category} />
-                <StatusBadge status={c.status} />
-              </div>
-              <h3 className="mt-5 line-clamp-2 font-semibold text-foreground">{c.title}</h3>
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" /> {c.area}</span>
-                <span className="inline-flex items-center gap-1"><Clock className="size-3.5" /> {formatDate(c.updatedAt)}</span>
-              </div>
-              <p className="mt-4 border-t border-border/70 pt-4 text-xs font-medium text-muted-foreground">
-                {categoryMeta(c.category).short} · <span className="font-mono">{c.id}</span>
-              </p>
-            </Link>
+        <Stagger className="mt-10 grid gap-4 md:grid-cols-3">
+          {recent.map((c) => (
+            <StaggerItem key={c.tracking_id}>
+              <motion.div {...hoverLift} className="h-full">
+                <Link
+                  to="/track"
+                  search={{ id: c.tracking_id }}
+                  className="block h-full rounded-2xl border border-border/70 bg-card p-6 shadow-card transition-shadow hover:shadow-elevated"
+                >
+                  <div className="flex items-center justify-between">
+                    <CategoryIcon category={asCat(c.category)} />
+                    <StatusBadge status="Resolved" />
+                  </div>
+                  <h3 className="mt-5 line-clamp-2 font-semibold text-foreground">{c.title}</h3>
+                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3.5" /> {c.town}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="size-3.5" /> {formatDate(c.updated_at)}
+                    </span>
+                  </div>
+                  <p className="mt-4 border-t border-border/70 pt-4 text-xs font-medium text-muted-foreground">
+                    {categoryMeta(asCat(c.category)).short} ·{" "}
+                    <span className="font-mono">{c.tracking_id}</span>
+                  </p>
+                </Link>
+              </motion.div>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
+        {!isLoading && recent.length === 0 && (
+          <p className="mt-10 rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+            No resolved complaints yet. The first success story could be from your street 🌱
+          </p>
+        )}
       </section>
 
       {/* CTA */}
       <section className="container-page pb-20 md:pb-24">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-navy px-6 py-14 text-center text-navy-foreground shadow-elevated sm:px-12">
-          <div className="absolute inset-0 bg-grid-light" aria-hidden />
-          <div className="relative mx-auto max-w-2xl">
-            <h2 className="font-display text-3xl font-bold sm:text-4xl">Seen a problem in your street?</h2>
-            <p className="mt-4 text-navy-foreground/75">
-              Your report is the first step to fixing it. It only takes a minute.
-            </p>
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button asChild variant="brand" size="xl">
-                <Link to="/report"><Megaphone /> Report an Issue</Link>
-              </Button>
-              <Button asChild variant="glass" size="xl">
-                <Link to="/dashboard">Open my dashboard</Link>
-              </Button>
+        <Reveal>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-navy px-6 py-14 text-center text-navy-foreground shadow-elevated sm:px-12">
+            <div className="absolute inset-0 bg-grid-light" aria-hidden />
+            <div className="relative mx-auto max-w-2xl">
+              <h2 className="font-display text-3xl font-bold sm:text-4xl">
+                Seen a problem in your street?
+              </h2>
+              <p className="mt-4 text-navy-foreground/75">
+                Your report is the first step to fixing it. It only takes a minute.
+              </p>
+              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button asChild variant="brand" size="xl">
+                  <Link to="/report">
+                    <Megaphone /> Report an Issue
+                  </Link>
+                </Button>
+                <Button asChild variant="glass" size="xl">
+                  <Link to="/dashboard">Open my dashboard</Link>
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
     </>
   );

@@ -15,7 +15,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader } from "@/components/civic/SiteHeader";
 import { SiteFooter } from "@/components/civic/SiteFooter";
 import { Toaster } from "@/components/ui/sonner";
-import { complaintStore } from "@/lib/complaints";
+import { MotionConfig } from "framer-motion";
+import { AuthProvider } from "@/hooks/use-auth";
 
 function NotFoundComponent() {
   return (
@@ -125,20 +126,20 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  useEffect(() => {
-    complaintStore.loadFromStorage();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen flex-col">
-        <SiteHeader />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <SiteFooter />
-      </div>
-      <Toaster richColors position="top-center" />
+      <AuthProvider>
+        <MotionConfig reducedMotion="user">
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <main className="flex-1">
+              <Outlet />
+            </main>
+            <SiteFooter />
+          </div>
+        </MotionConfig>
+        <Toaster richColors position="bottom-right" />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

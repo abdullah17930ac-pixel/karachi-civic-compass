@@ -1,11 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Building2, CalendarDays, FileSearch, Hash, MapPin, Search, User } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import {
+  Building2,
+  CalendarDays,
+  FileSearch,
+  Hash,
+  Heart,
+  Loader2,
+  MapPin,
+  Search,
+  Star,
+} from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CategoryIcon, StatusBadge } from "@/components/civic/bits";
+import { CategoryIcon, Skeleton, StatusBadge } from "@/components/civic/bits";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { ProgressTimeline } from "@/components/civic/ProgressTimeline";
-import { useComplaints } from "@/hooks/use-complaints";
+import { useAuth } from "@/hooks/use-auth";
+import { civicKeys, usePublicStats } from "@/hooks/use-civic";
+import {
+  fetchMyFeedback,
+  fetchOwnedComplaintId,
+  fetchPublicComplaint,
+  submitFeedback,
+} from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { categoryMeta, formatDate, formatDateTime } from "@/lib/categories";
 
 export const Route = createFileRoute("/track")({
@@ -18,10 +40,14 @@ export const Route = createFileRoute("/track")({
       { title: "Track Complaint – CivicConnect Karachi" },
       {
         name: "description",
-        content: "Enter your complaint ID to see its current status, department and full progress timeline.",
+        content:
+          "Enter your complaint ID to see its current status, department and full progress timeline.",
       },
       { property: "og:title", content: "Track Your Complaint – CivicConnect" },
-      { property: "og:description", content: "Follow your civic complaint from Submitted to Resolved." },
+      {
+        property: "og:description",
+        content: "Follow your civic complaint from Submitted to Resolved.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -32,13 +58,18 @@ export const Route = createFileRoute("/track")({
 function TrackPage() {
   const { id } = Route.useSearch();
   const navigate = useNavigate({ from: "/track" });
-  const complaints = useComplaints();
   const [query, setQuery] = useState(id ?? "");
+  const stats = usePublicStats();
 
   useEffect(() => setQuery(id ?? ""), [id]);
 
-  const complaint = id ? complaints.find((c) => c.id === id) : undefined;
-  const samples = complaints.slice(0, 4);
+  const lookup = useQuery({
+    queryKey: civicKeys.track(id ?? ""),
+    queryFn: () => fetchPublicComplaint(id!),
+    enabled: !!id,
+  });
+  const complaint = lookup.data ?? undefined;
+  const samples = stats.data?.sample_ids ?? [];
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -50,12 +81,19 @@ function TrackPage() {
       <section className="relative overflow-hidden bg-gradient-navy text-navy-foreground">
         <div className="absolute inset-0 bg-grid-light" aria-hidden />
         <div className="container-page relative py-14 text-center md:py-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-navy-foreground/60">Track complaint</p>
-          <h1 className="mt-3 font-display text-3xl font-bold sm:text-5xl">Where is my complaint?</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-navy-foreground/60">
+            Track complaint
+          </p>
+          <h1 className="mt-3 font-display text-3xl font-bold sm:text-5xl">
+            Where is my complaint?
+          </h1>
           <p className="mx-auto mt-4 max-w-xl text-navy-foreground/75">
             Enter the complaint ID you received after submitting your report.
           </p>
-          <form onSubmit={onSubmit} className="mx-auto mt-8 flex max-w-xl flex-col gap-2 rounded-2xl bg-card p-2 shadow-elevated sm:flex-row">
+          <form
+            onSubmit={onSubmit}
+            className="mx-auto mt-8 flex max-w-xl flex-col gap-2 rounded-2xl bg-card p-2 shadow-elevated sm:flex-row"
+          >
             <div className="relative flex-1">
               <Hash className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -71,15 +109,17 @@ function TrackPage() {
             </Button>
           </form>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="text-navy-foreground/60">Try a sample ID:</span>
-            {samples.map((c) => (
+            {samples.length > 0 && (
+              <span className="text-navy-foreground/60">Recently updated:</span>
+            )}
+            {samples.map((sid) => (
               <Link
-                key={c.id}
+                key={sid}
                 to="/track"
-                search={{ id: c.id }}
+                search={{ id: sid }}
                 className="rounded-full border border-navy-foreground/20 bg-navy-foreground/5 px-3 py-1 font-mono text-navy-foreground/85 hover:bg-navy-foreground/15"
               >
-                {c.id}
+                {sid}
               </Link>
             ))}
           </div>
@@ -93,14 +133,31 @@ function TrackPage() {
             text="Your ID looks like CC-KHI-123456 and is shown right after you submit a complaint."
           />
         )}
-        {id && !complaint && (
+        {id && lookup.isLoading && (
+          <div className="grid gap-6 lg:grid-cols-12">
+            <Skeleton className="h-72 lg:col-span-8" />
+            <Skeleton className="h-72 lg:col-span-4" />
+          </div>
+        )}
+        {id && lookup.isError && (
           <EmptyState
-            title="No complaint found"
-            text={`We couldn't find a complaint with ID ${id}. Please check the ID and try again.`}
+            title="We couldn't reach the server"
+            text="Please check your internet connection and try again in a moment."
+          />
+        )}
+        {id && lookup.isSuccess && !complaint && (
+          <EmptyState
+            title="Hmm, no complaint with that ID"
+            text={`We couldn't find ${id}. Double-check the ID. It looks like CC-KHI-123456.`}
           />
         )}
         {complaint && (
-          <div className="grid animate-fade-up gap-6 lg:grid-cols-12">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="grid gap-6 lg:grid-cols-12"
+          >
             <div className="space-y-6 lg:col-span-8">
               <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card sm:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -108,8 +165,12 @@ function TrackPage() {
                     <CategoryIcon category={complaint.category} size="lg" />
                     <div>
                       <p className="font-mono text-sm font-semibold text-brand">{complaint.id}</p>
-                      <h2 className="mt-1 text-xl font-bold text-foreground sm:text-2xl">{complaint.title}</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">{categoryMeta(complaint.category).label}</p>
+                      <h2 className="mt-1 text-xl font-bold text-foreground sm:text-2xl">
+                        {complaint.title}
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {categoryMeta(complaint.category).label}
+                      </p>
                     </div>
                   </div>
                   <StatusBadge status={complaint.status} className="px-3 py-1.5 text-sm" />
@@ -119,9 +180,13 @@ function TrackPage() {
                 </div>
               </div>
 
+              {complaint.status === "Resolved" && <FeedbackCard trackingId={complaint.id} />}
+
               <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card sm:p-8">
                 <h3 className="font-bold text-foreground">Complaint details</h3>
-                <p className="mt-3 leading-relaxed text-muted-foreground">{complaint.description}</p>
+                <p className="mt-3 leading-relaxed text-muted-foreground">
+                  {complaint.description}
+                </p>
                 {complaint.photo && (
                   <img
                     src={complaint.photo}
@@ -151,11 +216,28 @@ function TrackPage() {
               <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-card">
                 <h3 className="font-bold text-foreground">Information</h3>
                 <dl className="mt-5 space-y-4">
-                  <Info icon={MapPin} label="Location" value={`${complaint.address}, ${complaint.area}, Karachi`} />
-                  <Info icon={CalendarDays} label="Submitted on" value={formatDate(complaint.createdAt)} />
-                  <Info icon={CalendarDays} label="Last updated" value={formatDateTime(complaint.updatedAt)} />
-                  <Info icon={Building2} label="Assigned department" value={complaint.department ?? "Awaiting assignment"} />
-                  <Info icon={User} label="Reported by" value={complaint.citizen} />
+                  <Info
+                    icon={MapPin}
+                    label="Location"
+                    value={[complaint.address, complaint.area, "Karachi"]
+                      .filter(Boolean)
+                      .join(", ")}
+                  />
+                  <Info
+                    icon={CalendarDays}
+                    label="Submitted on"
+                    value={formatDate(complaint.createdAt)}
+                  />
+                  <Info
+                    icon={CalendarDays}
+                    label="Last updated"
+                    value={formatDateTime(complaint.updatedAt)}
+                  />
+                  <Info
+                    icon={Building2}
+                    label="Assigned department"
+                    value={complaint.department ?? "Awaiting assignment"}
+                  />
                 </dl>
               </div>
               <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card">
@@ -171,7 +253,7 @@ function TrackPage() {
                 </div>
               </div>
             </aside>
-          </div>
+          </motion.div>
         )}
       </section>
     </div>
@@ -204,5 +286,108 @@ function EmptyState({ title, text }: { title: string; text: string }) {
         <Link to="/report">Report a new issue instead</Link>
       </Button>
     </div>
+  );
+}
+
+function FeedbackCard({ trackingId }: { trackingId: string }) {
+  const { userId, ready } = useAuth();
+  const qc = useQueryClient();
+  const owned = useQuery({
+    queryKey: ["owned", trackingId, userId],
+    queryFn: () => fetchOwnedComplaintId(trackingId, userId!),
+    enabled: ready && !!userId,
+  });
+  const dbId = owned.data ?? null;
+  const existing = useQuery({
+    queryKey: ["feedback", dbId],
+    queryFn: () => fetchMyFeedback(dbId!),
+    enabled: !!dbId,
+  });
+  const [fixed, setFixed] = useState<boolean | null>(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const send = useMutation({
+    mutationFn: () => submitFeedback(userId!, dbId!, { fixed: fixed!, rating, comment }),
+    onSuccess: () => {
+      toast.success("Thank you! Your feedback helps keep everyone accountable 💛");
+      void qc.invalidateQueries({ queryKey: ["feedback", dbId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't save feedback."),
+  });
+
+  if (!dbId) return null; // only the person who reported it can rate it
+
+  const done = existing.data;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-status-resolved/30 bg-status-resolved-soft p-6 sm:p-8"
+    >
+      <h3 className="flex items-center gap-2 font-bold text-foreground">
+        <Heart className="size-5 text-status-resolved" /> Was it really fixed?
+      </h3>
+      {done ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          You said it was {done.fixed ? "fixed ✅" : "not really fixed ❌"} and rated it{" "}
+          {"★".repeat(done.rating)}
+          {"☆".repeat(5 - done.rating)}. Thanks for closing the loop!
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your honest answer tells the team whether the job was done right.
+          </p>
+          <div className="mt-4 flex gap-2">
+            {[true, false].map((v) => (
+              <Button
+                key={String(v)}
+                type="button"
+                variant={fixed === v ? "brand" : "outline"}
+                className="bg-card"
+                onClick={() => setFixed(v)}
+              >
+                {v ? "Yes, it's fixed" : "Not really"}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-1" role="radiogroup" aria-label="Rating">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <motion.button
+                key={n}
+                type="button"
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setRating(n)}
+                aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                className="p-1"
+              >
+                <Star
+                  className={cn(
+                    "size-7",
+                    n <= rating ? "fill-status-review text-status-review" : "text-muted-foreground",
+                  )}
+                />
+              </motion.button>
+            ))}
+          </div>
+          <Textarea
+            value={comment}
+            maxLength={500}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Anything else? (optional)"
+            className="mt-4 bg-card"
+          />
+          <Button
+            className="mt-4"
+            variant="brand"
+            disabled={fixed === null || rating === 0 || send.isPending}
+            onClick={() => send.mutate()}
+          >
+            {send.isPending && <Loader2 className="animate-spin" />} Send feedback
+          </Button>
+        </>
+      )}
+    </motion.div>
   );
 }

@@ -1,5 +1,6 @@
-// CivicConnect demo data layer. All complaints and statistics here are
-// DEMONSTRATION DATA ONLY — no government system is connected.
+// CivicConnect shared types, sample data and pure helpers.
+// Live data comes from the database (see `src/lib/api.ts`); SEED_COMPLAINTS is only
+// used by the admin's "Load sample complaints" button and the unit tests.
 
 export const STATUSES = ["Submitted", "Under Review", "In Progress", "Resolved"] as const;
 export type Status = (typeof STATUSES)[number];
@@ -57,14 +58,18 @@ export interface TimelineEntry {
 }
 
 export interface Complaint {
+  /** Public tracking ID, e.g. CC-KHI-482913 */
   id: string;
+  /** Database row id (uuid). Empty for sample data. */
+  dbId: string;
   title: string;
   description: string;
   category: CategoryId;
   area: string;
   address: string;
   status: Status;
-  department: Department | null;
+  department: string | null;
+  departmentId: string | null;
   createdAt: string;
   updatedAt: string;
   citizen: string;
@@ -94,6 +99,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Gulshan-e-Iqbal",
     address: "University Road, near NIPA Chowrangi",
     status: "In Progress",
+    dbId: "",
+    departmentId: null,
     department: "KMC Roads & Infrastructure",
     createdAt: "2026-10-28T09:15:00.000Z",
     updatedAt: "2026-11-02T11:40:00.000Z",
@@ -114,6 +121,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Gulshan-e-Iqbal",
     address: "Block 13-D, near Al-Huda Park",
     status: "Resolved",
+    dbId: "",
+    departmentId: null,
     department: "Sindh Solid Waste Management",
     createdAt: "2026-10-20T07:30:00.000Z",
     updatedAt: "2026-10-24T16:05:00.000Z",
@@ -135,6 +144,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "DHA Phase 6",
     address: "Khayaban-e-Ittehad, between Lane 4 and Lane 7",
     status: "Under Review",
+    dbId: "",
+    departmentId: null,
     department: "K-Electric Streetlight Unit",
     createdAt: "2026-11-01T18:50:00.000Z",
     updatedAt: "2026-11-02T09:10:00.000Z",
@@ -154,6 +165,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "North Nazimabad",
     address: "Block H, near Hyderi Market",
     status: "Submitted",
+    dbId: "",
+    departmentId: null,
     department: null,
     createdAt: "2026-11-04T06:25:00.000Z",
     updatedAt: "2026-11-04T06:25:00.000Z",
@@ -170,6 +183,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Lyari",
     address: "Chakiwara Road, near Govt. Boys School",
     status: "In Progress",
+    dbId: "",
+    departmentId: null,
     department: "KW&SC Sewerage & Drainage",
     createdAt: "2026-10-30T08:00:00.000Z",
     updatedAt: "2026-11-03T13:30:00.000Z",
@@ -190,6 +205,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Shah Faisal Colony",
     address: "Shahrah-e-Faisal, near Drigh Road Station",
     status: "Resolved",
+    dbId: "",
+    departmentId: null,
     department: "KMC Roads & Infrastructure",
     createdAt: "2026-10-15T10:40:00.000Z",
     updatedAt: "2026-10-19T15:00:00.000Z",
@@ -211,6 +228,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Korangi",
     address: "Sector 31-B, near Korangi Crossing",
     status: "Under Review",
+    dbId: "",
+    departmentId: null,
     department: "Sindh Solid Waste Management",
     createdAt: "2026-11-02T12:10:00.000Z",
     updatedAt: "2026-11-03T08:30:00.000Z",
@@ -230,6 +249,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Federal B Area",
     address: "Block 16, Karimabad main street",
     status: "Submitted",
+    dbId: "",
+    departmentId: null,
     department: null,
     createdAt: "2026-11-04T15:45:00.000Z",
     updatedAt: "2026-11-04T15:45:00.000Z",
@@ -246,6 +267,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "PECHS",
     address: "Block 2, Jheel Park",
     status: "In Progress",
+    dbId: "",
+    departmentId: null,
     department: "KMC Parks & Horticulture",
     createdAt: "2026-10-25T16:20:00.000Z",
     updatedAt: "2026-11-01T10:00:00.000Z",
@@ -266,6 +289,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Gulistan-e-Jauhar",
     address: "Block 15, near Rabia City",
     status: "Resolved",
+    dbId: "",
+    departmentId: null,
     department: "KW&SC Water Supply",
     createdAt: "2026-10-18T05:50:00.000Z",
     updatedAt: "2026-10-21T12:00:00.000Z",
@@ -287,6 +312,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Nazimabad",
     address: "Nazimabad No. 3, near Jamia Masjid",
     status: "Resolved",
+    dbId: "",
+    departmentId: null,
     department: "K-Electric Streetlight Unit",
     createdAt: "2026-10-22T19:10:00.000Z",
     updatedAt: "2026-10-26T14:30:00.000Z",
@@ -308,6 +335,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Saddar",
     address: "Preedy Street, outside Empress Market",
     status: "Under Review",
+    dbId: "",
+    departmentId: null,
     department: "KMC Roads & Infrastructure",
     createdAt: "2026-11-03T11:00:00.000Z",
     updatedAt: "2026-11-04T09:20:00.000Z",
@@ -327,6 +356,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Malir",
     address: "Malir Halt bus stop, National Highway",
     status: "Submitted",
+    dbId: "",
+    departmentId: null,
     department: null,
     createdAt: "2026-11-05T07:05:00.000Z",
     updatedAt: "2026-11-05T07:05:00.000Z",
@@ -343,6 +374,8 @@ export const SEED_COMPLAINTS: Complaint[] = [
     area: "Clifton",
     address: "Seaview Road, near Do Darya",
     status: "Resolved",
+    dbId: "",
+    departmentId: null,
     department: "KW&SC Sewerage & Drainage",
     createdAt: "2026-10-12T14:00:00.000Z",
     updatedAt: "2026-10-17T10:30:00.000Z",
@@ -399,6 +432,8 @@ export function createComplaint(
     address: input.address.trim(),
     photo: input.photo,
     status: "Submitted",
+    dbId: "",
+    departmentId: null,
     department: null,
     createdAt: iso,
     updatedAt: iso,
@@ -424,8 +459,7 @@ export function applyStatus(c: Complaint, status: Status, now: Date = new Date()
   return {
     ...c,
     status,
-    department:
-      c.department ?? (targetIdx >= 1 ? DEFAULT_DEPARTMENT[c.category] : null),
+    department: c.department ?? (targetIdx >= 1 ? DEFAULT_DEPARTMENT[c.category] : null),
     updatedAt: iso,
     timeline: filled,
   };
@@ -441,80 +475,3 @@ export function countByStatus(list: Complaint[]) {
   for (const c of list) out[c.status]++;
   return out;
 }
-
-// ---------- browser store (localStorage) ----------
-
-const STORAGE_KEY = "civicconnect.demo.complaints.v1";
-let state: Complaint[] = SEED_COMPLAINTS;
-let loaded = false;
-const listeners = new Set<() => void>();
-
-function emit() {
-  for (const l of listeners) l();
-}
-
-function persist() {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Storage full (large photos) — retry without photos so data is not lost.
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(state.map(({ photo: _p, ...rest }) => rest)),
-      );
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-export const complaintStore = {
-  subscribe(cb: () => void) {
-    listeners.add(cb);
-    return () => listeners.delete(cb);
-  },
-  getSnapshot: () => state,
-  getServerSnapshot: () => SEED_COMPLAINTS,
-  loadFromStorage() {
-    if (loaded || typeof window === "undefined") return;
-    loaded = true;
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Complaint[];
-        if (Array.isArray(parsed)) {
-          state = parsed;
-          emit();
-        }
-      }
-    } catch {
-      /* ignore corrupt storage */
-    }
-  },
-  add(input: NewComplaintInput) {
-    const c = createComplaint(state, input);
-    state = [c, ...state];
-    persist();
-    emit();
-    return c;
-  },
-  setStatus(id: string, status: Status) {
-    state = state.map((c) => (c.id === id ? applyStatus(c, status) : c));
-    persist();
-    emit();
-  },
-  setDepartment(id: string, department: Department) {
-    state = state.map((c) =>
-      c.id === id ? { ...c, department, updatedAt: new Date().toISOString() } : c,
-    );
-    persist();
-    emit();
-  },
-  reset() {
-    state = SEED_COMPLAINTS;
-    persist();
-    emit();
-  },
-};

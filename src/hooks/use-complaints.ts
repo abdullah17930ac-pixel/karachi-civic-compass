@@ -1,10 +1,3 @@
-import { useSyncExternalStore } from "react";
-import { complaintStore } from "@/lib/complaints";
-
-export function useComplaints() {
-  return useSyncExternalStore(
-    complaintStore.subscribe,
-    complaintStore.getSnapshot,
-    complaintStore.getServerSnapshot,
-  );
-}
+// Kept so older imports don't break. Complaints now come from the database:
+// use `useComplaintList` from "@/hooks/use-civic" instead.
+export { useComplaintList as useComplaints } from "./use-civic";
