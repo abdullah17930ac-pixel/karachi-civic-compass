@@ -28,3 +28,8 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- Complaint data lives in `src/lib/complaints.ts` (seed data + pure helpers + a localStorage-backed store read via `useComplaints`); it is a browser-only demo with no backend, so pages must work from seed data during SSR and load saved data after hydration.
+- Dates are formatted with a fixed `Asia/Karachi` timezone (`src/lib/categories.ts`) so server and browser render identical text.

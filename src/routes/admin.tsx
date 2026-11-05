@@ -297,7 +297,7 @@ function AdminPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-muted-foreground">{formatDate(c.createdAt)}</td>
                     <td className="px-4 py-4">
-                      <Select value={c.department ?? undefined} onValueChange={(v) => updateDept(c.id, v as Department)}>
+                      <Select value={c.department ?? ""} onValueChange={(v) => updateDept(c.id, v as Department)}>
                         <SelectTrigger className="h-9 w-56 text-xs">
                           <SelectValue placeholder="Assign department…" />
                         </SelectTrigger>
