@@ -52,7 +52,7 @@ export function StatCard({
   label: string;
   value: ReactNode;
   icon: LucideIcon;
-  hint?: string;
+  hint?: string | undefined;
   tone?: "brand" | "review" | "progress" | "resolved" | "navy";
 }) {
   const tones = {
@@ -82,7 +82,7 @@ export function PageHeader({
   description,
   actions,
 }: {
-  eyebrow?: string;
+  eyebrow?: string | undefined;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;

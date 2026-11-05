@@ -69,7 +69,7 @@ export interface Complaint {
   updatedAt: string;
   citizen: string;
   mine: boolean;
-  photo?: string;
+  photo?: string | undefined;
   timeline: TimelineEntry[];
 }
 
@@ -377,7 +377,7 @@ export interface NewComplaintInput {
   category: CategoryId;
   area: string;
   address: string;
-  photo?: string;
+  photo?: string | undefined;
 }
 
 export function createComplaint(
@@ -417,7 +417,7 @@ export function applyStatus(c: Complaint, status: Status, now: Date = new Date()
   const have = new Set(kept.map((e) => e.status));
   const filled = [...kept];
   for (let i = 0; i <= targetIdx; i++) {
-    const s = STATUSES[i];
+    const s = STATUSES[i]!;
     if (!have.has(s)) filled.push(t(s, iso, NOTES[s]));
   }
   filled.sort((a, b) => STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status));

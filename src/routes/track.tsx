@@ -9,9 +9,10 @@ import { useComplaints } from "@/hooks/use-complaints";
 import { categoryMeta, formatDate, formatDateTime } from "@/lib/categories";
 
 export const Route = createFileRoute("/track")({
-  validateSearch: (s: Record<string, unknown>): { id?: string } => ({
-    id: typeof s.id === "string" && s.id.trim() ? s.id.trim().toUpperCase() : undefined,
-  }),
+  validateSearch: (s: Record<string, unknown>): { id?: string | undefined } => {
+    const raw = s["id"];
+    return { id: typeof raw === "string" && raw.trim() ? raw.trim().toUpperCase() : undefined };
+  },
   head: () => ({
     meta: [
       { title: "Track Complaint – CivicConnect Karachi" },

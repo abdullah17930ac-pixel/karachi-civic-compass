@@ -355,8 +355,8 @@ function ChartCard({
   children,
 }: {
   title: string;
-  badge?: string;
-  className?: string;
+  badge?: string | undefined;
+  className?: string | undefined;
   children: React.ReactNode;
 }) {
   return (

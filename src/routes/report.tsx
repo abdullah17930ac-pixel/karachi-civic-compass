@@ -39,8 +39,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/report")({
-  validateSearch: (s: Record<string, unknown>): { category?: CategoryId } => ({
-    category: CATEGORY_IDS.includes(s.category as CategoryId) ? (s.category as CategoryId) : undefined,
+  validateSearch: (s: Record<string, unknown>): { category?: CategoryId | undefined } => ({
+    category: CATEGORY_IDS.includes(s["category"] as CategoryId) ? (s["category"] as CategoryId) : undefined,
   }),
   head: () => ({
     meta: [
@@ -407,8 +407,8 @@ function Section({
 }: {
   step: number;
   title: string;
-  optional?: boolean;
-  error?: string;
+  optional?: boolean | undefined;
+  error?: string | undefined;
   children: React.ReactNode;
 }) {
   return (
@@ -434,9 +434,9 @@ function Field({
   children,
 }: {
   label: string;
-  htmlFor?: string;
-  error?: string;
-  hint?: string;
+  htmlFor?: string | undefined;
+  error?: string | undefined;
+  hint?: string | undefined;
   children: React.ReactNode;
 }) {
   return (

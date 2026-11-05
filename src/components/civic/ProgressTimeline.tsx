@@ -1,9 +1,9 @@
-import { Check, ClipboardCheck, Hammer, Search, Send } from "lucide-react";
+import { Check, ClipboardCheck, Hammer, Search, Send, type LucideIcon } from "lucide-react";
 import { formatDateTime } from "@/lib/categories";
 import { STATUSES, type Complaint } from "@/lib/complaints";
 import { cn } from "@/lib/utils";
 
-const ICONS = [Send, Search, Hammer, ClipboardCheck];
+const ICONS: LucideIcon[] = [Send, Search, Hammer, ClipboardCheck];
 
 export function ProgressTimeline({ complaint }: { complaint: Complaint }) {
   const current = STATUSES.indexOf(complaint.status);
@@ -22,7 +22,7 @@ export function ProgressTimeline({ complaint }: { complaint: Complaint }) {
           {STATUSES.map((s, i) => {
             const entry = complaint.timeline.find((e) => e.status === s);
             const done = i <= current;
-            const Icon = ICONS[i];
+            const Icon = ICONS[i]!;
             return (
               <li key={s} className="flex flex-col items-center text-center">
                 <span
@@ -51,7 +51,7 @@ export function ProgressTimeline({ complaint }: { complaint: Complaint }) {
         {STATUSES.map((s, i) => {
           const entry = complaint.timeline.find((e) => e.status === s);
           const done = i <= current;
-          const Icon = ICONS[i];
+          const Icon = ICONS[i]!;
           return (
             <li key={s} className="relative flex gap-4 pb-6 last:pb-0">
               {i < STATUSES.length - 1 && (
